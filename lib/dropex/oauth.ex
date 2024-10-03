@@ -5,7 +5,7 @@ defmodule Dropex.OAuth do
     """
     https://www.dropbox.com/oauth2/authorize\
     ?client_id=#{client_id!()}\
-    &redirect_uri=#{client_secret!()}\
+    &redirect_uri=#{redirect_uri!()}\
     &response_type=code\
     &token_access_type=offline\
     """
@@ -29,7 +29,7 @@ defmodule Dropex.OAuth do
         "refresh_token" => refresh_token,
         "expires_in" => expires_in
       } ->
-        Dropex.Token.set_token(access_token, refresh_token, expires_in)
+        Dropex.set_token(access_token, refresh_token, expires_in)
         {:ok, access_token}
 
       _ ->
@@ -53,7 +53,7 @@ defmodule Dropex.OAuth do
         "access_token" => access_token,
         "expires_in" => expires_in
       } ->
-        Dropex.Token.set_token(access_token, refresh_token, expires_in)
+        Dropex.set_token(access_token, refresh_token, expires_in)
         {:ok, access_token, expires_in}
 
       _ ->
@@ -62,14 +62,14 @@ defmodule Dropex.OAuth do
   end
 
   defp client_id!() do
-    Application.fetch_env!(:dropex, :client_id)
+    System.get_env("DROPBOX_CLIENT_ID")
   end
 
   defp client_secret!() do
-    Application.fetch_env!(:dropex, :client_secret)
+    System.get_env("DROPBOX_CLIENT_SECRET")
   end
 
   defp redirect_uri!() do
-    Application.fetch_env!(:dropex, :redirect_uri)
+    System.get_env("DROPBOX_REDIRECT_URI")
   end
 end
