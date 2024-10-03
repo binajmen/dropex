@@ -29,7 +29,7 @@ defmodule Dropex.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:req, "~> 0.5.2"},
+      {:req, "~> 0.5.6"},
       {:jason, "~> 1.4.4"}
     ]
   end

@@ -59,8 +59,6 @@ defmodule Dropex.Client do
       {:ok, %Req.Response{status: 400, body: %{"error" => %{".tag" => "expired_access_token"}}}} ->
         case retries < 2 do
           true ->
-            Dropex.Token.refresh_token()
-
             with {:ok, token} = Dropex.Token.get_token() do
               request
               |> set_bearer(token)

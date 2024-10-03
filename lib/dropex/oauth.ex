@@ -1,15 +1,11 @@
 defmodule Dropex.OAuth do
   import Dropex.Client
 
-  @client_id "utxeyq6c5nn5804"
-  @client_secret "3gyew9ruz867hlr"
-  @redirect_uri "http://localhost:3000/dropbox"
-
   def build_authorization_url() do
     """
     https://www.dropbox.com/oauth2/authorize\
-    ?client_id=#{@client_id}\
-    &redirect_uri=#{@redirect_uri}\
+    ?client_id=#{client_id!()}\
+    &redirect_uri=#{client_secret!()}\
     &response_type=code\
     &token_access_type=offline\
     """
@@ -21,9 +17,9 @@ defmodule Dropex.OAuth do
       |> set_form(%{
         code: code,
         grant_type: "authorization_code",
-        redirect_uri: @redirect_uri,
-        client_id: @client_id,
-        client_secret: @client_secret
+        redirect_uri: redirect_uri!(),
+        client_id: client_id!(),
+        client_secret: client_secret!()
       })
       |> run_request()
 
@@ -47,8 +43,8 @@ defmodule Dropex.OAuth do
       |> set_form(%{
         refresh_token: refresh_token,
         grant_type: "refresh_token",
-        client_id: @client_id,
-        client_secret: @client_secret
+        client_id: client_id!(),
+        client_secret: client_secret!()
       })
       |> run_request()
 
@@ -63,5 +59,17 @@ defmodule Dropex.OAuth do
       _ ->
         {:error, "Failed to refresh access token"}
     end
+  end
+
+  defp client_id!() do
+    Application.fetch_env!(:dropex, :client_id)
+  end
+
+  defp client_secret!() do
+    Application.fetch_env!(:dropex, :client_secret)
+  end
+
+  defp redirect_uri!() do
+    Application.fetch_env!(:dropex, :redirect_uri)
   end
 end
