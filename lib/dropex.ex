@@ -46,6 +46,21 @@ defmodule Dropex do
   end
 
   @impl true
+  def handle_call({:refresh_token, refresh_token}, _from, state) do
+    Logger.info("Forcing refresh of token")
+
+    case Dropex.OAuth.refresh_access_token(refresh_token) do
+      {:ok, _, _} ->
+        Logger.info("Token refreshed")
+
+      {:error, reason} ->
+        Logger.error("Failed to refresh token: #{inspect(reason)}")
+    end
+
+    {:noreply, %{state | refresh_timer: nil}}
+  end
+
+  @impl true
   def handle_cast({:set_token, access_token, refresh_token, expires_in}, state) do
     Logger.info("Inserting Dropbox token in ETS")
 
@@ -62,7 +77,7 @@ defmodule Dropex do
   end
 
   @impl true
-  def handle_info(:refresh_token, state) do
+  def handle_info(:auto_refresh, state) do
     Logger.info("Refreshing Dropbox token")
 
     case :ets.lookup(@table_name, :token) do
@@ -85,6 +100,6 @@ defmodule Dropex do
   # Helper functions
 
   defp schedule_refresh(time) do
-    Process.send_after(self(), :refresh_token, time * 1000)
+    Process.send_after(self(), :auto_refresh, time * 1000)
   end
 end
