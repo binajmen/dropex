@@ -3,8 +3,9 @@ defmodule Dropex do
 
   require Logger
 
-  @table_name :dropex_tokens
-  @refresh_threshold 14100
+  @table :dropex
+  @key :token
+  @refresh_threshold 14340
 
   # Client API
 
@@ -12,94 +13,97 @@ defmodule Dropex do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
+  @spec get_token() ::
+          {:ok, access_token :: String.t(), refresh_token :: String.t()}
+          | {:refresh, refresh_token :: String.t()}
+          | {:error, reason :: String.t()}
   def get_token() do
     GenServer.call(__MODULE__, :get_token)
+  end
+
+  def refresh_token(refresh_token) do
+    GenServer.call(__MODULE__, {:refresh_token, refresh_token})
   end
 
   def set_token(access_token, refresh_token, expires_in) do
     GenServer.cast(__MODULE__, {:set_token, access_token, refresh_token, expires_in})
   end
 
+  def rotate_token() do
+    GenServer.cast(__MODULE__, :rotate_token)
+  end
+
   # Server callbacks
 
   @impl true
   def init(_opts) do
-    :ets.new(@table_name, [:set, :protected, :named_table])
+    :ets.new(@table, [:set, :protected, :named_table])
     {:ok, %{refresh_timer: nil}}
   end
 
   @impl true
   def handle_call(:get_token, _from, state) do
-    Logger.info("Retrieving Dropbox token from ETS")
+    Logger.info("handle_call/:get_token")
 
-    case :ets.lookup(@table_name, :token) do
-      [{:token, access_token, _refresh_token, expiration}] ->
+    case :ets.lookup(@table, @key) do
+      [{:token, access_token, refresh_token, expiration}] ->
         if :os.system_time(:second) < expiration - @refresh_threshold do
-          {:reply, {:ok, access_token}, state}
+          {:reply, {:ok, access_token, refresh_token}, state}
         else
-          {:reply, {:error, "Access token is expired"}, state}
+          {:reply, {:refresh, refresh_token}, state}
         end
 
       [] ->
-        {:reply, {:error, "No token found"}, state}
+        {:reply, {:error, "token not found"}, state}
     end
   end
 
-  @impl true
   def handle_call({:refresh_token, refresh_token}, _from, state) do
-    Logger.info("Forcing refresh of token")
-
-    case Dropex.OAuth.refresh_access_token(refresh_token) do
-      {:ok, _, _} ->
-        Logger.info("Token refreshed")
-
-      {:error, reason} ->
-        Logger.error("Failed to refresh token: #{inspect(reason)}")
-    end
-
-    {:noreply, %{state | refresh_timer: nil}}
+    refresh_token(refresh_token, state)
   end
 
   @impl true
   def handle_cast({:set_token, access_token, refresh_token, expires_in}, state) do
-    Logger.info("Inserting Dropbox token in ETS")
+    Logger.info("handle_call/:set_token")
 
     expiration = :os.system_time(:second) + expires_in
-    :ets.insert(@table_name, {:token, access_token, refresh_token, expiration})
+    :ets.insert(@table, {@key, access_token, refresh_token, expiration})
 
-    # Cancel any existing timer
     if state.refresh_timer, do: Process.cancel_timer(state.refresh_timer)
-
-    # Schedule token refresh
     refresh_timer = schedule_refresh(expires_in - @refresh_threshold)
 
     {:noreply, %{state | refresh_timer: refresh_timer}}
   end
 
   @impl true
-  def handle_info(:auto_refresh, state) do
-    Logger.info("Auto refreshing Dropbox token")
+  def handle_info(:rotate_token, state) do
+    Logger.info("handle_info/:rotate_token")
 
-    case :ets.lookup(@table_name, :token) do
+    case :ets.lookup(@table, @key) do
       [{:token, _access_token, refresh_token, _expiration}] ->
-        case Dropex.OAuth.refresh_access_token(refresh_token) do
-          {:ok, _, _} ->
-            Logger.info("Token refreshed")
-
-          {:error, reason} ->
-            Logger.error("Failed to refresh token: #{inspect(reason)}")
-        end
+        refresh_token(refresh_token, state)
 
       [] ->
-        Logger.warning("No token found to refresh")
+        Logger.warning("no token found")
+        {:noreply, %{state | refresh_timer: nil}}
     end
-
-    {:noreply, %{state | refresh_timer: nil}}
   end
 
   # Helper functions
 
+  defp refresh_token(refresh_token, state) do
+    case Dropex.OAuth.refresh_access_token(refresh_token) do
+      {:ok, access_token, refresh_token, expires_in} ->
+        Dropex.set_token(access_token, refresh_token, expires_in)
+        {:noreply, %{state | refresh_timer: nil}}
+
+      {:error, reason} ->
+        Logger.error("failed to refresh token: #{inspect(reason)}")
+        {:noreply, %{state | refresh_timer: nil}}
+    end
+  end
+
   defp schedule_refresh(time) do
-    Process.send_after(self(), :auto_refresh, time * 1000)
+    Process.send_after(self(), :rotate_token, time * 1000)
   end
 end

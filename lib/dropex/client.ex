@@ -20,8 +20,16 @@ defmodule Dropex.Client do
   end
 
   def set_bearer(request) do
-    with {:ok, token} <- Dropex.get_token() do
-      Req.merge(request, auth: {:bearer, token})
+    case Dropex.get_token() do
+      {:ok, access_token, _refresh_token} ->
+        Req.merge(request, auth: {:bearer, access_token})
+
+      {:refresh, refresh_token} ->
+        Dropex.refresh_token(refresh_token)
+        set_bearer(request)
+
+      {:error, _reason} ->
+        request
     end
   end
 
@@ -59,9 +67,9 @@ defmodule Dropex.Client do
       {:ok, %Req.Response{status: 400, body: %{"error" => %{".tag" => "expired_access_token"}}}} ->
         case retries < 2 do
           true ->
-            with {:ok, token} = Dropex.get_token() do
+            with {:ok, access_token, _refresh_token} = Dropex.get_token() do
               request
-              |> set_bearer(token)
+              |> set_bearer(access_token)
               |> run_request(retries + 1)
             end
 
