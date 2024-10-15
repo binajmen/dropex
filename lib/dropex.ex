@@ -4,7 +4,7 @@ defmodule Dropex do
   require Logger
 
   @table_name :dropex_tokens
-  @refresh_threshold 300
+  @refresh_threshold 14100
 
   # Client API
 
@@ -78,7 +78,7 @@ defmodule Dropex do
 
   @impl true
   def handle_info(:auto_refresh, state) do
-    Logger.info("Refreshing Dropbox token")
+    Logger.info("Auto refreshing Dropbox token")
 
     case :ets.lookup(@table_name, :token) do
       [{:token, _access_token, refresh_token, _expiration}] ->
