@@ -45,6 +45,21 @@ defmodule Dropex.Client do
     Req.merge(request, headers: %{"dropbox-api-arg" => Jason.encode!(args)})
   end
 
+  def set_root_namespace_id(request) do
+    case Application.fetch_env(:dropex, :root_namespace_id) do
+      {:ok, root_namespace_id} ->
+        Req.merge(request,
+          headers: %{
+            "dropbox-api-path-root":
+              Jason.encode!(%{".tag" => "root", "root" => root_namespace_id})
+          }
+        )
+
+      :error ->
+        request
+    end
+  end
+
   def set_body(request, body) do
     Req.merge(request, body: body)
   end
@@ -58,7 +73,9 @@ defmodule Dropex.Client do
   end
 
   def run_request(request, retries \\ 0) do
-    res = Req.request(request)
+    res =
+      set_root_namespace_id(request)
+      |> Req.request()
 
     case res do
       {:ok, %Req.Response{status: 200} = res} ->
