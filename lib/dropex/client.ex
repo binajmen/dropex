@@ -42,7 +42,7 @@ defmodule Dropex.Client do
   end
 
   def set_hearers_args(request, args) do
-    Req.merge(request, headers: {"dropbox-api-arg", Jason.encode!(args)})
+    Req.merge(request, headers: %{"dropbox-api-arg" => Jason.encode!(args)})
   end
 
   def set_body(request, body) do
