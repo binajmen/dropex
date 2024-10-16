@@ -5,7 +5,7 @@ defmodule Dropex do
 
   @table :dropex
   @key :token
-  @refresh_threshold 14340
+  @refresh_threshold 300
 
   # Client API
 
