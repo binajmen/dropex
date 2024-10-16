@@ -14,7 +14,6 @@ defmodule Dropex.Files do
     new_request(:post, "/files/create_folder_batch")
     |> set_bearer()
     |> set_json(%{paths: paths})
-    |> IO.inspect()
     |> run_request()
   end
 

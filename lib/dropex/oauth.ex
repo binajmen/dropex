@@ -34,7 +34,7 @@ defmodule Dropex.OAuth do
         "expires_in" => expires_in
       } ->
         Dropex.set_token(access_token, refresh_token, expires_in)
-        {:ok, {access_token, refresh_token}}
+        {:ok, access_token, refresh_token}
 
       _ ->
         {:error, "Failed to obtain access token"}
